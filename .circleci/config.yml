@@ -1,0 +1,53 @@
+version: 2.1
+executors:
+  node_browsers:
+    docker:
+      - image: circleci/node:13.2.0-browsers
+    working_directory: ~/repo
+commands:
+  restore_workspace:
+    description: Restore the workspace
+    steps:
+      - attach_workspace:
+          at: ~/
+jobs:
+  install_dependencies:
+    executor: node_browsers
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Yarn Package Cache
+          keys:
+            - v2-cache
+      - run:
+          name: Install Dependencies
+          command: yarn install --link-duplicates --frozen-lockfile
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: v2-cache
+          paths:
+            - ~/.cache/yarn
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - repo
+  jest_e2e:
+    executor: node_browsers
+    steps:
+      - restore_workspace
+      - run:
+          name: Setup E2E
+          command: mkdir -p screenshots
+      - run:
+          name: Start E2E
+          command: yarn test:e2e
+      - store_artifacts:
+          path: screenshots
+workflows:
+  version: 2
+  main:
+    jobs:
+      - install_dependencies
+      - jest_e2e:
+          requires:
+            - install_dependencies
